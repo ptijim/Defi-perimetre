@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Défi périmètre : figure fermée sur une grille</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial,'Noto Sans',sans-serif;
+      background:#ffffff;
+      color:#111827;
+    }
+    header{
+      padding:16px 20px;
+      background:linear-gradient(120deg,#dbeafe,#fecaca);
+      border-bottom:2px solid #111827;
+    }
+    header h1{
+      margin:0;
+      font-size:clamp(20px,3vw,28px);
+    }
+    .container{
+      max-width:980px;
+      margin:20px auto;
+      padding:0 16px;
+    }
+    .card{
+      background:#ffffff;
+      border:2px solid #111827;
+      border-radius:14px;
+      box-shadow:0 6px 18px rgba(0,0,0,.08);
+      padding:16px;
+    }
+    /* Mode plein écran : la carte occupe tout l'écran, la grille prend toute la hauteur dispo */
+    .fullscreen-active{
+      max-width:100vw !important;
+      width:100vw;
+      height:100vh;
+      margin:0;
+      border-radius:0;
+      box-shadow:none;
+      border-width:0;
+    }
+    .fullscreen-active .board-wrap{
+      height:calc(100vh - 150px);
+    }
+    .fullscreen-active .svg-wrap{
+      height:100%;
+    }
+    .fullscreen-active svg{
+      width:100%;
+      height:100%;
+    }
+
+    .instructions{
+      font-size:16px;
+      line-height:1.5;
+      margin-bottom:12px;
+    }
+    .instructions em{
+      background:#fef3c7;
+      padding:0 3px;
+      border-radius:4px;
+    }
+    .toolbar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:12px;
+    }
+    .left, .right{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .badge{
+      font-weight:700;
+      border-radius:999px;
+      padding:6px 10px;
+      border:2px solid #111827;
+      background:#fff;
+      font-size:14px;
+    }
+    .badge.ok{
+      color:#065f46;
+      border-color:#065f46;
+      background:#ecfdf5;
+    }
+    .badge.warn{
+      color:#991b1b;
+      border-color:#991b1b;
+      background:#fef2f2;
+    }
+    .grid-settings{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      font-size:14px;
+      margin-bottom:8px;
+      align-items:center;
+    }
+    .grid-settings input{
+      width:3.5rem;
+      padding:2px 4px;
+      border-radius:6px;
+      border:1px solid #9ca3af;
+      font-size:14px;
+    }
+    button{
+      appearance:none;
+      border:2px solid #111827;
+      background:#fff;
+      border-radius:10px;
+      padding:8px 12px;
+      font-weight:800;
+      cursor:pointer;
+      font-size:14px;
+    }
+    button.primary{
+      background:#2563eb;
+      color:#ffffff;
+    }
+    button.small{
+      padding:4px 8px;
+      font-size:13px;
+    }
+    button:hover{
+      background:#f9fafb;
+    }
+    button:disabled{
+      opacity:.5;
+      cursor:not-allowed;
+    }
+    .board-wrap{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+    .svg-wrap{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+    }
+    svg{
+      max-width:100%;
+      height:auto;
+      touch-action:manipulation;
+      background:#f8fafc;
+      border:2px solid #111827;
+      border-radius:8px;
+    }
+    .legend{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      font-size:15px;
+      color:#374151;
+    }
+    .msg{
+      min-height:22px;
+      font-weight:600;
+    }
+    .msg.error{
+      color:#b91c1c;
+    }
+    .msg.ok{
+      color:#065f46;
+    }
+    @media (max-width:700px){
+      .toolbar{
+        flex-direction:column;
+        align-items:flex-start;
+      }
+    }
+    /* Styles pour la grille et les segments */
+    .grid-line{
+      stroke:#cbd5f5;
+      stroke-width:2;
+    }
+    .edge-base{
+      stroke:#93c5fd;
+      stroke-width:8;
+      stroke-linecap:round;
+      opacity:0.35;
+      pointer-events:none;
+    }
+    .edge-hit{
+      stroke:transparent;
+      stroke-width:24;
+      cursor:pointer;
+    }
+    .edge-on{
+      stroke:#111827;
+      opacity:1;
+    }
+    .node{
+      fill:#ffffff;
+      stroke:#111827;
+      stroke-width:2;
+    }
+
+    /* Feuille avec 4 grilles vierges pour impression */
+    #printSheet{
+      display:none;
+    }
+    #printSheet .sheet{
+      width:100%;
+      height:100%;
+      padding:10mm;
+      box-sizing:border-box;
+    }
+    #printSheet .grid4{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      grid-template-rows:1fr 1fr;
+      gap:10mm;
+      width:100%;
+      height:100%;
+    }
+    #printSheet .grid-cell{
+      border:1px solid #e5e7eb;
+      border-radius:4px;
+      padding:4mm;
+      box-sizing:border-box;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    #printSheet svg{
+      width:100%;
+      height:100%;
+      background:#ffffff;
+      border:1px solid #9ca3af;
+    }
+
+    /* Impression */
+    @media print{
+      header{
+        background:#ffffff;
+        border-bottom:none;
+        padding:8px 12px;
+      }
+      .card{
+        box-shadow:none;
+        border:none;
+      }
+      .toolbar,
+      .msg,
+      .grid-settings{
+        display:none !important;
+      }
+      body{
+        margin:0;
+      }
+      /* Mode "multi-grilles" : on n'affiche que la feuille avec 4 grilles */
+      body.print-multi #mainCard{
+        display:none !important;
+      }
+      body.print-multi #printSheet{
+        display:block !important;
+      }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Défi périmètre : figure fermée sur une grille</h1>
+</header>
+
+<div class="container">
+  <div class="card" id="mainCard" role="group" aria-label="Grille de carreaux avec segments cliquables">
+    <p class="instructions">
+      <strong>Consigne :</strong> Trace une <strong>figure fermée</strong> en suivant les lignes de cette grille de
+      <strong><span id="labelCols">6</span> carreaux sur <span id="labelRows">4</span></strong>.<br>
+      Calcule son périmètre <em>(l’unité de longueur est le côté d’un petit carreau)</em>.
+      Le périmètre de la figure doit être <strong>le plus grand possible</strong>.
+    </p>
+
+    <div class="grid-settings">
+      <span><strong>Dimensions de la grille :</strong></span>
+      <label>Largeur (carreaux) :
+        <input type="number" id="colsInput" min="2" max="12" value="6">
+      </label>
+      <label>Hauteur (carreaux) :
+        <input type="number" id="rowsInput" min="2" max="12" value="4">
+      </label>
+      <button id="btnApplyGrid" class="small">Redessiner la grille</button>
+      <span class="small" style="font-size:12px;color:#6b7280;">
+        (La meilleure figure dépend de la grille choisie.)
+      </span>
+    </div>
+
+    <div class="toolbar">
+      <div class="left">
+        <span class="badge" id="segmentsBadge">Segments : 0</span>
+        <span class="badge" id="perimeterBadge">Périmètre : —</span>
+        <span class="badge" id="bestBadge">Meilleur périmètre : 0</span>
+      </div>
+      <div class="right">
+        <button id="btnCheck" class="primary">Vérifier la figure</button>
+        <button id="btnReset">Réinitialiser</button>
+        <button id="btnFullscreen" class="small">Plein écran</button>
+        <button id="btnExportJSON" class="small">Exporter JSON</button>
+        <button id="btnExportPNG" class="small">Exporter PNG</button>
+        <button id="btnPrintBlank" class="small">4 grilles vierges</button>
+        <button id="btnPrint" class="small">Imprimer / PDF</button>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div class="svg-wrap">
+        <svg id="board" viewBox="0 0 420 300" role="img"
+             aria-label="Grille avec segments cliquables">
+          <g id="gridLines"></g>
+          <g id="edges"></g>
+          <g id="nodes"></g>
+        </svg>
+      </div>
+      <div class="legend">
+        <span id="msg" class="msg" aria-live="polite"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feuille A4 avec 4 grilles vierges pour les élèves -->
+  <div id="printSheet">
+    <div class="sheet">
+      <div class="grid4">
+        <div class="grid-cell"><svg class="printGrid"></svg></div>
+        <div class="grid-cell"><svg class="printGrid"></svg></div>
+        <div class="grid-cell"><svg class="printGrid"></svg></div>
+        <div class="grid-cell"><svg class="printGrid"></svg></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+  // Paramètres initiaux de la grille
+  let COLS = 6; // carreaux horizontaux
+  let ROWS = 4; // carreaux verticaux
+  let NODE_COLS = COLS + 1;
+  let NODE_ROWS = ROWS + 1;
+  const PITCH_X = 60;
+  const PITCH_Y = 60;
+  const MARGIN_X = 30;
+  const MARGIN_Y = 30;
+
+  const board = document.getElementById('board');
+  const gridLinesG = document.getElementById('gridLines');
+  const edgesG = document.getElementById('edges');
+  const nodesG = document.getElementById('nodes');
+  const msgEl = document.getElementById('msg');
+  const segmentsBadge = document.getElementById('segmentsBadge');
+  const perimeterBadge = document.getElementById('perimeterBadge');
+  const bestBadge = document.getElementById('bestBadge');
+
+  const btnCheck = document.getElementById('btnCheck');
+  const btnReset = document.getElementById('btnReset');
+  const btnPrint = document.getElementById('btnPrint');
+  const btnApplyGrid = document.getElementById('btnApplyGrid');
+  const btnExportJSON = document.getElementById('btnExportJSON');
+  const btnExportPNG = document.getElementById('btnExportPNG');
+  const btnFullscreen = document.getElementById('btnFullscreen');
+  const btnPrintBlank = document.getElementById('btnPrintBlank');
+
+  const colsInput = document.getElementById('colsInput');
+  const rowsInput = document.getElementById('rowsInput');
+  const labelCols = document.getElementById('labelCols');
+  const labelRows = document.getElementById('labelRows');
+  const mainCard = document.getElementById('mainCard');
+
+  const printGrids = document.querySelectorAll('.printGrid');
+
+  // Ensemble des arêtes actives : clés "r1,c1|r2,c2" avec ordre normalisé
+  const activeEdges = new Set();
+  let best = 0;
+
+  function bestKey(){
+    return 'perimetre_' + COLS + 'x' + ROWS + '_meilleur';
+  }
+  function stateKey(){
+    return 'perimetre_state_' + COLS + 'x' + ROWS;
+  }
+
+  function loadBest(){
+    best = Number(localStorage.getItem(bestKey()) || 0);
+    if (!Number.isFinite(best)) best = 0;
+    bestBadge.textContent = 'Meilleur périmètre : ' + best;
+  }
+
+  function saveBest(){
+    localStorage.setItem(bestKey(), String(best));
+  }
+
+  function saveState(){
+    const edgesArr = Array.from(activeEdges);
+    const data = { cols: COLS, rows: ROWS, edges: edgesArr };
+    try{
+      localStorage.setItem(stateKey(), JSON.stringify(data));
+    }catch(e){
+      // stockage peut échouer (quota), on ignore
+    }
+  }
+
+  function loadState(){
+    const raw = localStorage.getItem(stateKey());
+    if (!raw) return;
+    try{
+      const data = JSON.parse(raw);
+      if (data.cols === COLS && data.rows === ROWS && Array.isArray(data.edges)){
+        activeEdges.clear();
+        data.edges.forEach(k => activeEdges.add(k));
+        updateEdgesStyle();
+        updateBadges();
+        setMessage('Figure sauvegardée rechargée pour cette grille.');
+      }
+    }catch(e){
+      // ignore
+    }
+  }
+
+  function nodeCoord(r, c){
+    return {
+      x: MARGIN_X + c * PITCH_X,
+      y: MARGIN_Y + r * PITCH_Y
+    };
+  }
+
+  function edgeKey(r1, c1, r2, c2){
+    // Normalise l'ordre pour que (a,b)-(c,d) == (c,d)-(a,b)
+    if (r1 > r2 || (r1 === r2 && c1 > c2)){
+      const tr = r1; r1 = r2; r2 = tr;
+      const tc = c1; c1 = c2; c2 = tc;
+    }
+    return r1 + ',' + c1 + '|' + r2 + ',' + c2;
+  }
+
+  function updateViewBox(){
+    const w = MARGIN_X * 2 + COLS * PITCH_X;
+    const h = MARGIN_Y * 2 + ROWS * PITCH_Y;
+    board.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+  }
+
+  // Dessine la grille de petits carreaux
+  function drawGrid(){
+    gridLinesG.innerHTML = '';
+    for (let r = 0; r <= ROWS; r++){
+      const y = MARGIN_Y + r * PITCH_Y;
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1', MARGIN_X);
+      line.setAttribute('y1', y);
+      line.setAttribute('x2', MARGIN_X + COLS * PITCH_X);
+      line.setAttribute('y2', y);
+      line.setAttribute('class', 'grid-line');
+      gridLinesG.appendChild(line);
+    }
+    for (let c = 0; c <= COLS; c++){
+      const x = MARGIN_X + c * PITCH_X;
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1', x);
+      line.setAttribute('y1', MARGIN_Y);
+      line.setAttribute('x2', x);
+      line.setAttribute('y2', MARGIN_Y + ROWS * PITCH_Y);
+      line.setAttribute('class', 'grid-line');
+      gridLinesG.appendChild(line);
+    }
+  }
+
+  // Création des nœuds (pour visualiser les intersections)
+  function drawNodes(){
+    nodesG.innerHTML = '';
+    for (let r = 0; r < NODE_ROWS; r++){
+      for (let c = 0; c < NODE_COLS; c++){
+        const pos = nodeCoord(r, c);
+        const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        circle.setAttribute('cx', pos.x);
+        circle.setAttribute('cy', pos.y);
+        circle.setAttribute('r', 5);
+        circle.setAttribute('class', 'node');
+        nodesG.appendChild(circle);
+      }
+    }
+  }
+
+  // Création des arêtes cliquables (segments de la grille)
+  function drawEdges(){
+    edgesG.innerHTML = '';
+    // Arêtes horizontales
+    for (let r = 0; r < NODE_ROWS; r++){
+      for (let c = 0; c < NODE_COLS - 1; c++){
+        createEdge(r, c, r, c+1);
+      }
+    }
+    // Arêtes verticales
+    for (let r = 0; r < NODE_ROWS - 1; r++){
+      for (let c = 0; c < NODE_COLS; c++){
+        createEdge(r, c, r+1, c);
+      }
+    }
+    updateEdgesStyle();
+  }
+
+  function createEdge(r1, c1, r2, c2){
+    const p1 = nodeCoord(r1, c1);
+    const p2 = nodeCoord(r2, c2);
+    const k = edgeKey(r1, c1, r2, c2);
+
+    const base = document.createElementNS('http://www.w3.org/2000/svg','line');
+    base.setAttribute('x1', p1.x);
+    base.setAttribute('y1', p1.y);
+    base.setAttribute('x2', p2.x);
+    base.setAttribute('y2', p2.y);
+    base.setAttribute('class', 'edge-base');
+    base.dataset.key = k;
+
+    const hit = document.createElementNS('http://www.w3.org/2000/svg','line');
+    hit.setAttribute('x1', p1.x);
+    hit.setAttribute('y1', p1.y);
+    hit.setAttribute('x2', p2.x);
+    hit.setAttribute('y2', p2.y);
+    hit.setAttribute('class', 'edge-hit');
+    hit.dataset.key = k;
+    hit.addEventListener('click', onEdgeClick);
+
+    edgesG.appendChild(base);
+    edgesG.appendChild(hit);
+  }
+
+  function onEdgeClick(e){
+    const k = e.target.dataset.key;
+    if (!k) return;
+    if (activeEdges.has(k)){
+      activeEdges.delete(k);
+      setMessage('Segment retiré.');
+    } else {
+      activeEdges.add(k);
+      setMessage('Segment ajouté.');
+    }
+    updateEdgesStyle();
+    updateBadges();
+    saveState();
+  }
+
+  function updateEdgesStyle(){
+    const bases = edgesG.querySelectorAll('.edge-base');
+    bases.forEach(b => {
+      const k = b.dataset.key;
+      if (activeEdges.has(k)){
+        b.classList.add('edge-on');
+      } else {
+        b.classList.remove('edge-on');
+      }
+    });
+  }
+
+  function updateBadges(isClosed){
+    const n = activeEdges.size;
+    segmentsBadge.textContent = 'Segments : ' + n;
+
+    if (isClosed === undefined){
+      // pas encore vérifié
+      perimeterBadge.textContent = 'Périmètre : —';
+      perimeterBadge.className = 'badge';
+      return;
+    }
+
+    if (!isClosed){
+      perimeterBadge.textContent = 'Périmètre : — (figure non fermée)';
+      perimeterBadge.className = 'badge warn';
+    } else {
+      perimeterBadge.textContent = 'Périmètre : ' + n + ' (en unités de carreaux)';
+      perimeterBadge.className = 'badge ok';
+      if (n > best){
+        best = n;
+        saveBest();
+        bestBadge.textContent = 'Meilleur périmètre : ' + best;
+      }
+    }
+  }
+
+  function setMessage(text, mode){
+    msgEl.textContent = text || '';
+    msgEl.className = 'msg';
+    if (mode === 'error') msgEl.classList.add('error');
+    if (mode === 'ok') msgEl.classList.add('ok');
+  }
+
+  // Vérification complète de la figure
+  function analyseFigure(){
+    const result = {
+      isClosed:false,
+      isolatedNodes:[],   // degré 1
+      branchingNodes:[],  // degré >2
+      components:0
+    };
+    if (activeEdges.size === 0){
+      return result;
+    }
+
+    // Construire l'adjacence des nœuds utilisés
+    const adj = new Map();
+    function addNode(r, c){
+      const key = r + ',' + c;
+      if (!adj.has(key)){
+        adj.set(key, new Set());
+      }
+      return key;
+    }
+
+    activeEdges.forEach(k => {
+      const parts = k.split('|');
+      const [r1,c1] = parts[0].split(',').map(Number);
+      const [r2,c2] = parts[1].split(',').map(Number);
+      const na = addNode(r1, c1);
+      const nb = addNode(r2, c2);
+      adj.get(na).add(nb);
+      adj.get(nb).add(na);
+    });
+
+    // Degrés et détections
+    const nodesUsed = Array.from(adj.keys());
+    nodesUsed.forEach(key => {
+      const d = adj.get(key).size;
+      if (d === 1) result.isolatedNodes.push(key);
+      else if (d > 2) result.branchingNodes.push(key);
+    });
+
+    // Composantes connexes
+    const visited = new Set();
+    let compCount = 0;
+    nodesUsed.forEach(start => {
+      if (visited.has(start)) return;
+      compCount++;
+      const stack = [start];
+      visited.add(start);
+      while (stack.length){
+        const cur = stack.pop();
+        adj.get(cur).forEach(nxt => {
+          if (!visited.has(nxt)){
+            visited.add(nxt);
+            stack.push(nxt);
+          }
+        });
+      }
+    });
+    result.components = compCount;
+
+    // Fermeture : tous les nœuds utilisés doivent avoir degré 2 et une seule composante
+    if (result.isolatedNodes.length === 0 &&
+        result.branchingNodes.length === 0 &&
+        compCount === 1){
+      result.isClosed = true;
+    }
+    return result;
+  }
+
+  btnCheck.addEventListener('click', function(){
+    if (activeEdges.size === 0){
+      setMessage('Commence par tracer une figure en cliquant sur les segments.', 'error');
+      updateBadges(false);
+      return;
+    }
+    const info = analyseFigure();
+    if (!info.isClosed){
+      let msg = 'La figure n’est pas fermée.';
+      if (info.isolatedNodes.length){
+        msg += ' Certains sommets n’ont qu’1 segment (segments isolés).';
+      }
+      if (info.branchingNodes.length){
+        msg += ' Certains sommets ont plus de 2 segments (croisements / embranchements).';
+      }
+      if (info.components > 1){
+        msg += ' Plusieurs morceaux séparés (plus d’une figure).';
+      }
+      setMessage(msg, 'error');
+    } else {
+      setMessage('Bravo, ta figure est fermée ! Regarde le périmètre affiché.', 'ok');
+    }
+    updateBadges(info.isClosed);
+  });
+
+  btnReset.addEventListener('click', function(){
+    activeEdges.clear();
+    updateEdgesStyle();
+    updateBadges();
+    setMessage('Grille réinitialisée.');
+    saveState();
+  });
+
+  // Changement de grille
+  btnApplyGrid.addEventListener('click', function(){
+    let newCols = parseInt(colsInput.value, 10);
+    let newRows = parseInt(rowsInput.value, 10);
+    if (!Number.isFinite(newCols) || newCols < 2) newCols = 2;
+    if (!Number.isFinite(newRows) || newRows < 2) newRows = 2;
+    if (newCols > 12) newCols = 12;
+    if (newRows > 12) newRows = 12;
+    COLS = newCols;
+    ROWS = newRows;
+    NODE_COLS = COLS + 1;
+    NODE_ROWS = ROWS + 1;
+    labelCols.textContent = COLS;
+    labelRows.textContent = ROWS;
+    setMessage('Nouvelle grille ' + COLS + '×' + ROWS + ' créée.');
+    rebuildBoard();
+  });
+
+  function rebuildBoard(){
+    activeEdges.clear();
+    updateViewBox();
+    drawGrid();
+    drawNodes();
+    drawEdges();
+    loadBest();
+    updateBadges();
+    loadState(); // tente de restaurer une éventuelle figure pour cette grille
+  }
+
+  // Export JSON
+  btnExportJSON.addEventListener('click', function(){
+    const edgesList = Array.from(activeEdges).map(k => {
+      const [a,b] = k.split('|');
+      const [r1,c1] = a.split(',').map(Number);
+      const [r2,c2] = b.split(',').map(Number);
+      return { r1, c1, r2, c2 };
+    });
+    const data = {
+      cols: COLS,
+      rows: ROWS,
+      perimeter: activeEdges.size,
+      edges: edgesList
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'figure_' + COLS + 'x' + ROWS + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setMessage('Figure exportée au format JSON.', 'ok');
+  });
+
+  // Export PNG à partir du SVG
+  btnExportPNG.addEventListener('click', function(){
+    const svg = board;
+    const serializer = new XMLSerializer();
+    let source = serializer.serializeToString(svg);
+
+    if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
+      source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
+    if (!source.match(/^<svg[^>]+xmlns:xlink="http\:\/\/www\.w3\.org\/1999\/xlink"/)){
+      source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+    }
+    source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
+
+    const svgBlob = new Blob([source], {type:'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = function(){
+      const vb = svg.viewBox.baseVal;
+      const canvas = document.createElement('canvas');
+      canvas.width = vb.width;
+      canvas.height = vb.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      const pngUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = 'figure_' + COLS + 'x' + ROWS + '.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+    img.src = url;
+    setMessage('Export PNG en cours (vérifie tes téléchargements).', 'ok');
+  });
+
+  // Impression / PDF (utilise la feuille @media print du navigateur)
+  btnPrint.addEventListener('click', function(){
+    document.body.classList.remove('print-multi');
+    window.print();
+  });
+
+  // Dessine les 4 grilles vierges pour impression (dans #printSheet)
+  function drawPrintGrids(){
+    const width = 210; // mm approx, but we use viewBox; choose similar scale as main grid
+    const height = 150;
+    const cellMargin = 10;
+
+    printGrids.forEach(function(svg){
+      const vbWidth = MARGIN_X * 2 + COLS * PITCH_X;
+      const vbHeight = MARGIN_Y * 2 + ROWS * PITCH_Y;
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      svg.setAttribute('viewBox', '0 0 ' + vbWidth + ' ' + vbHeight);
+
+      const gGrid = document.createElementNS('http://www.w3.org/2000/svg','g');
+
+      for (let r = 0; r <= ROWS; r++){
+        const y = MARGIN_Y + r * PITCH_Y;
+        const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+        line.setAttribute('x1', MARGIN_X);
+        line.setAttribute('y1', y);
+        line.setAttribute('x2', MARGIN_X + COLS * PITCH_X);
+        line.setAttribute('y2', y);
+        line.setAttribute('stroke', '#cbd5f5');
+        line.setAttribute('stroke-width', '2');
+        gGrid.appendChild(line);
+      }
+      for (let c = 0; c <= COLS; c++){
+        const x = MARGIN_X + c * PITCH_X;
+        const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+        line.setAttribute('x1', x);
+        line.setAttribute('y1', MARGIN_Y);
+        line.setAttribute('x2', x);
+        line.setAttribute('y2', MARGIN_Y + ROWS * PITCH_Y);
+        line.setAttribute('stroke', '#cbd5f5');
+        line.setAttribute('stroke-width', '2');
+        gGrid.appendChild(line);
+      }
+
+      svg.appendChild(gGrid);
+    });
+  }
+
+  // Grilles vierges : 4 par page pour les élèves
+  btnPrintBlank.addEventListener('click', function(){
+    activeEdges.clear();
+    updateEdgesStyle();
+    updateBadges();
+    setMessage('Préparation de la page avec 4 grilles vierges…', 'ok');
+    drawPrintGrids();
+    document.body.classList.add('print-multi');
+    window.print();
+    // Après impression, on laisse la classe ou on peut tenter de la retirer
+    setTimeout(function(){
+      document.body.classList.remove('print-multi');
+    }, 500);
+  });
+
+  // Plein écran
+  btnFullscreen.addEventListener('click', function(){
+    const elem = mainCard;
+    if (!document.fullscreenElement){
+      if (elem.requestFullscreen){
+        elem.requestFullscreen();
+      } else if (elem.webkitRequestFullscreen){
+        elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen){
+        elem.msRequestFullscreen();
+      }
+      elem.classList.add('fullscreen-active');
+    } else {
+      if (document.exitFullscreen){
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen){
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen){
+        document.msExitFullscreen();
+      }
+    }
+  });
+
+  document.addEventListener('fullscreenchange', function(){
+    if (!document.fullscreenElement){
+      mainCard.classList.remove('fullscreen-active');
+    } else {
+      mainCard.classList.add('fullscreen-active');
+    }
+  });
+
+  // Initialisation au chargement
+  function init(){
+    updateViewBox();
+    drawGrid();
+    drawNodes();
+    drawEdges();
+    loadBest();
+    updateBadges();
+    loadState();
+    setMessage('Clique sur les segments pour tracer ta figure fermée.');
+  }
+
+  init();
+
+})();
+</script>
+</body>
+</html>
