@@ -41,16 +41,27 @@
       border-radius:0;
       box-shadow:none;
       border-width:0;
+      display:flex;
+      flex-direction:row;
+      padding:0;
+    }
+    /* En plein écran : on masque le texte et on affiche la grille + le panneau latéral */
+    .fullscreen-active .instructions,
+    .fullscreen-active .grid-settings,
+    .fullscreen-active .toolbar,
+    .fullscreen-active .legend{
+      display:none !important;
     }
     .fullscreen-active .board-wrap{
-      height:calc(100vh - 150px);
+      height:100vh;
+      flex:1;
     }
     .fullscreen-active .svg-wrap{
-      height:100%;
+      height:100vh;
     }
     .fullscreen-active svg{
       width:100%;
-      height:100%;
+      height:100vh;
     }
 
     .instructions{
@@ -238,6 +249,34 @@
       border:1px solid #9ca3af;
     }
 
+    .fs-panel{
+      display:none;
+      flex-direction:column;
+      gap:12px;
+      padding:12px;
+      border-left:2px solid #111827;
+      background:#f9fafb;
+      min-width:170px;
+      box-sizing:border-box;
+    }
+    .fullscreen-active .fs-panel{
+      display:flex;
+    }
+    .fs-badges{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .fs-buttons{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      margin-top:8px;
+    }
+    .fs-buttons button{
+      width:100%;
+    }
+
     /* Impression */
     @media print{
       header{
@@ -325,6 +364,17 @@
         <span id="msg" class="msg" aria-live="polite"></span>
       </div>
     </div>
+    <div class="fs-panel" id="fsPanel" aria-label="Contrôles en plein écran">
+      <div class="fs-badges">
+        <span class="badge" id="fsSegmentsBadge">Segments : 0</span>
+        <span class="badge" id="fsPerimeterBadge">Périmètre : —</span>
+        <span class="badge" id="fsBestBadge">Meilleur périmètre : 0</span>
+      </div>
+      <div class="fs-buttons">
+        <button id="fsBtnCheck" class="primary small">Vérifier la figure</button>
+        <button id="fsBtnReset" class="small">Réinitialiser</button>
+      </div>
+    </div>
   </div>
 
   <!-- Feuille A4 avec 4 grilles vierges pour les élèves -->
@@ -378,6 +428,12 @@
   const mainCard = document.getElementById('mainCard');
 
   const printGrids = document.querySelectorAll('.printGrid');
+
+  const fsSegmentsBadge = document.getElementById('fsSegmentsBadge');
+  const fsPerimeterBadge = document.getElementById('fsPerimeterBadge');
+  const fsBestBadge = document.getElementById('fsBestBadge');
+  const fsBtnCheck = document.getElementById('fsBtnCheck');
+  const fsBtnReset = document.getElementById('fsBtnReset');
 
   // Ensemble des arêtes actives : clés "r1,c1|r2,c2" avec ordre normalisé
   const activeEdges = new Set();
@@ -564,11 +620,18 @@
   function updateBadges(isClosed){
     const n = activeEdges.size;
     segmentsBadge.textContent = 'Segments : ' + n;
+    if (fsSegmentsBadge){
+      fsSegmentsBadge.textContent = segmentsBadge.textContent;
+    }
 
     if (isClosed === undefined){
       // pas encore vérifié
       perimeterBadge.textContent = 'Périmètre : —';
       perimeterBadge.className = 'badge';
+      if (fsPerimeterBadge){
+        fsPerimeterBadge.textContent = perimeterBadge.textContent;
+        fsPerimeterBadge.className = perimeterBadge.className;
+      }
       return;
     }
 
@@ -583,6 +646,14 @@
         saveBest();
         bestBadge.textContent = 'Meilleur périmètre : ' + best;
       }
+    }
+    if (fsPerimeterBadge){
+      fsPerimeterBadge.textContent = perimeterBadge.textContent;
+      fsPerimeterBadge.className = perimeterBadge.className;
+    }
+    if (fsBestBadge && bestBadge){
+      fsBestBadge.textContent = bestBadge.textContent;
+      fsBestBadge.className = bestBadge.className || 'badge';
     }
   }
 
@@ -694,6 +765,18 @@
     setMessage('Grille réinitialisée.');
     saveState();
   });
+
+  // Boutons plein écran (panneau latéral)
+  if (fsBtnCheck){
+    fsBtnCheck.addEventListener('click', function(){
+      btnCheck.click();
+    });
+  }
+  if (fsBtnReset){
+    fsBtnReset.addEventListener('click', function(){
+      btnReset.click();
+    });
+  }
 
   // Changement de grille
   btnApplyGrid.addEventListener('click', function(){
